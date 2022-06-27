@@ -56,14 +56,31 @@ class AlienInvasion:
         alien.rect.y = alien.rect.height + 2 * alien.rect.height * row
         self.aliens.add(alien)
 
+    def check_fleet_edges(self):
+        #проверка достижения края экрана
+        for alien in self.aliens.sprites():
+            if alien.check_edges():
+                self.change_fleet_direction()
+                break
+
+    def change_fleet_direction(self):
+        #Опускает флот вниз при достижения края жкрана
+        for alien in self.aliens.sprites():
+            alien.rect.y += self.settings.fleet_drop_speed
+        self.settings.fleet_direction *= - 1
 
     def run(self):
     #Запуск оснвого цикла
         while True:
             self.check_events()
-            self.update_screen()
-            self.update_bullet()
             self.ship.update()
+            self.update_bullet()
+            self.update_aliens()
+            self.update_screen()
+
+    def update_aliens(self):
+        self.check_fleet_edges()
+        self.aliens.update()
 
     def check_events(self):
         # обработка нажатия клавиш и мышки
@@ -110,6 +127,13 @@ class AlienInvasion:
             if bullet.rect.bottom <= 0:
                 self.bullets.remove(bullet)
 
+        # Проверка попадания(при попадании удалить снаряд и пришельца)
+        collisions = pygame.sprite.groupcollide(self.bullets, self.aliens, True, True)
+
+        #Создание нового флота при уничтожении старого
+        if not self.aliens:
+            self.bullets.empty()
+            self.create_fleet()
     def update_screen(self):
         # Обновляет изображения на экране
         self.screen.fill(self.settings.bg_color)
