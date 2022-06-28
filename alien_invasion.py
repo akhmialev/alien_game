@@ -7,6 +7,8 @@ from bullet import Bullet
 from alien import Alien
 from time import sleep
 from game_stats import GameStats
+from button import Button
+from scoreboard import Scoreboard
 
 class AlienInvasion:
     # для управления поведением игры
@@ -26,16 +28,21 @@ class AlienInvasion:
 
         pygame.display.set_caption('Kill Aliens')
         self.stats = GameStats(self)
+        self.sb = Scoreboard(self)
         self.ship = Ship(self)
         self.bullets = pygame.sprite.Group()
         self.aliens = pygame.sprite.Group()
         self.create_fleet()
+
+        #Создание кнопки 'Play'
+        self.play_button = Button(self, "Play")
 
     def shit_hit(self):
         #Проверка "жизней"
         if self.stats.ship_left > 0:
             #Обработка столкновения корабль-пришелец
             self.stats.ship_left -= 1
+            self.sb.prep_ship()
             #Очистка списков пришелцев и снарядов
             self.aliens.empty()
             self.bullets.empty()
@@ -45,6 +52,7 @@ class AlienInvasion:
             sleep(1)
         else:
             self.stats.game_active = False
+            pygame.mouse.set_visible(True)
 
     def create_fleet(self):
         #Создание пришельца
@@ -122,6 +130,32 @@ class AlienInvasion:
             # если отпустить <- или -> то корабль перестанет двигаться
             elif event.type == pygame.KEYUP:
                 self.check_keyup_enevets(event)
+            #Отслеживание мышки
+            elif event.type == pygame.MOUSEBUTTONDOWN:
+                mouse_pos = pygame.mouse.get_pos()
+                self.check_play_button(mouse_pos)
+
+    def check_play_button(self, mouse_pos):
+        #Запуск игры при нажатии на 'Play'
+        button_click = self.play_button.rect.collidepoint(mouse_pos)
+        if button_click and not self.stats.game_active:
+            #Сброс игровых настроек
+            self.settings.initialize_dynamic_settings()
+            #Сброс предыдущей статистики
+            self.stats.reset_stats()
+            self.stats.game_active = True
+            self.sb.prep_score()
+            self.sb.prep_level()
+            self.sb.prep_ship()
+            #Очитска списков пришелцев и пуль
+            self.aliens.empty()
+            self.bullets.empty()
+            #Создание ногво флота и корабля
+            self.create_fleet()
+            self.ship.center_ship()
+            #Скрывает указатель мыши
+            pygame.mouse.set_visible(False)
+
 
     def check_keydown_enevts(self, event):
         # логоика нажатия клавиш
@@ -161,10 +195,22 @@ class AlienInvasion:
         # Проверка попадания(при попадании удалить снаряд и пришельца)
         collisions = pygame.sprite.groupcollide(self.bullets, self.aliens, True, True)
 
+        if collisions:
+            for aliens in collisions.values():
+                self.stats.score += self .settings.alien_points * len(aliens)
+            self.stats.score += self.settings.alien_points
+            self.sb.prep_score()
+            self.sb.check_high_score()
+
         #Создание нового флота при уничтожении старого
         if not self.aliens:
             self.bullets.empty()
             self.create_fleet()
+            self.settings.increase_speed()
+
+            #Увеличение уровня сложности
+            self.stats.level += 1
+            self.sb.prep_level()
 
     def check_aliens_bottom(self):
         #Проверка на достижения пришельцем нижнего края экрана
@@ -182,6 +228,11 @@ class AlienInvasion:
         for bullet in self.bullets.sprites():
             bullet.draw_bullet()
         self.aliens.draw(self.screen)
+        self.sb.show_score()
+        #Отоброжение кнопки 'Play' только в том случае, если игра не активна
+        if not self.stats.game_active:
+            self.play_button.draw_button()
+
         pygame.display.flip()
 
 if __name__ == '__main__':
